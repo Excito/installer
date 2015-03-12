@@ -1,5 +1,6 @@
 from time import time
 from threading import Event, Thread
+import logging
 
 LED_BLUE = 0
 LED_RED = 1
@@ -28,7 +29,7 @@ class LedManager(Thread):
         self.n_state = LedState()
         self.running = True
 
-    def set_led(self, color, interval):
+    def set_led(self, color, interval=0):
         self.n_state.color = color
         self.n_state.interval = interval
         self.req.set()
@@ -59,6 +60,9 @@ class LedManager(Thread):
         self.update_led()
 
     def update_led(self):
+        logging.debug('update_led c_state(%i %s %f) n_state(%i %s %f)' % (self.c_state.color, self.c_state.lit,
+                                                                          self.c_state.interval, self.n_state.color,
+                                                                          self.n_state.lit, self.n_state.interval))
         if self.n_state.lit:
             if self.n_state.color != self.c_state.color:
                 self.set_color(self.n_state.color)

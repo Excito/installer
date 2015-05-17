@@ -3,102 +3,16 @@
 __author__ = 'Charles Leclerc'
 
 import daemon
-import logging
 import os
 import os.path
-from subprocess import Popen, PIPE
-from threading import Thread
 import sys
 import ConfigParser
-import netifaces
 from signal import signal, SIGTERM
+
+from utils import *
 
 CONFIG_FILE = '/mnt/usb/install/install.ini'
 PID_FILE = '/var/run/installer.pid'
-
-# ------------------------------------
-# ----- Useful functions -------------
-# ------------------------------------
-
-# Run the specified command redirecting all output to logging
-# Returns the command return code
-def runcmd1(cmd):
-    logging.info("Running [%s]" % (','.join(cmd)))
-    p = Popen(cmd, stdout=PIPE, stderr=PIPE)
-
-    def follow_stderr():
-        for eline in p.stderr:
-            logging.error(eline)
-
-    t = Thread(target=follow_stderr)
-    t.start()
-    for iline in p.stdout:
-        logging.info(iline)
-    t.join()
-    p.wait()
-    if p.returncode:
-        logging.error("[%s] returned status %i" % (','.join(cmd), p.returncode))
-    else:
-        logging.info("[%s] returned status %i" % (','.join(cmd), p.returncode))
-    return p.returncode
-
-
-# Run the specified command redirecting only stderr to logging
-# Returns the process reference and the stderr writing thread
-def runcmd2(cmd):
-    logging.info("Running [%s]" % (','.join(cmd)))
-    p = Popen(cmd, stdout=PIPE, stderr=PIPE)
-
-    def follow_stderr():
-        for eline in p.stderr:
-            logging.error(eline)
-
-    t = Thread(target=follow_stderr)
-    t.start()
-    return p, t
-
-
-# write /etc/network/interfaces from configuration
-def configure_network():
-    global config
-    logging.info('Writing /etc/network/interfaces')
-    o = open('/etc/network/interfaces', 'a')
-    for s, i in (('wan', 'eth0'), ('lan', 'eth1')):
-        p = config.get(s, 'proto').strip()
-        if p == 'static' and (not config.has_option(s, 'ipaddr') or not config.has_option(s, 'netmask')):
-            logging.warning('Missing ipaddr or netmask for static configuration of %s ; falling back to DHCP' % (s, ))
-            p = 'dhcp'
-        o.write('\niface %s proto %s' % (i, p))
-        if p == 'static':
-            o.write('\n  address %s\n  netmask  %s' % (config.get(s, 'ipaddr').strip(),
-                                                       config.get(s, 'netmask').strip()))
-            if config.has_option(s, 'gateway'):
-                o.write('\n  gateway %s' % (config.get(s, 'gateway').strip()))
-        o.write('\n')
-    o.close()
-
-
-# Return the relevant numbers from the first address ip found on eth0/eth1
-# class C : last number; class B : last two numbers, etc.
-def get_first_ip_relevant_numbers():
-    for i in 'eth0', 'eth1':
-        addrs = netifaces.ifaddresses(i)
-        if netifaces.AF_INET not in addrs:
-            continue
-        if len(addrs[netifaces.AF_INET]) >= 1 and 'addr' in addrs[netifaces.AF_INET][0]:
-            ip = addrs[netifaces.AF_INET][0]['addr'].split('.')
-            nm = addrs[netifaces.AF_INET][0]['netmask'].split('.')
-            res = []
-            for r, n in map(None, ip, nm):
-                if n == '0':
-                    res.append(r)
-            return res
-    return None
-
-
-# Detect if we're running on a Bubba|2 (if not we're on a B3)
-def is_b2():
-    return os.path.exists('/sys/devices/platform/bubbatwo')
 
 
 def write_pid():
@@ -106,39 +20,13 @@ def write_pid():
     o.write('%i\n' % (os.getpid(),))
     o.close()
 
-
-def loop_ip_forever():
-    if is_b2():
-        if error:
-            led_error()
-        else:
-            led_rescue()
-        return  # not supported on the b2
-    ip = None
-    while True:
-        if error:
-            led_error()
-        else:
-            led_rescue()
-        sleep(2)
-        if not ip:
-            ip = get_first_ip_relevant_numbers()
-        if ip:
-            first = True
-            for n in ip:
-                if first:
-                    first = False
-                else:
-                    b3_set_color('cyan')
-                    sleep(1)
-                b3_set_color('black')
-                sleep(0.5)
-                b3_print_integer(n)
-            sleep(0.2)
-
+def remove_pid():
+    if os.path.exists(PID_FILE):
+        os.unlink(PID_FILE)
 
 def daemon_term_handler(signum, frame):
-    os.unlink(PID_FILE)
+    global error
+    remove_pid()
     if error:
         led_error()
     else:
@@ -155,7 +43,6 @@ if os.path.exists(PID_FILE):
 
 # Exit the script in early phase due to install key not found/not mounted or no configuration file found
 def early_exit():
-    global error
     logging.info("Configuring network with default settings")
     configure_network()
     logging.warning("Install script ended with errors")
@@ -165,11 +52,10 @@ def early_exit():
         sys.exit(1)
     else:
         with daemon.DaemonContext():
-            error = True
             write_pid()
             signal(SIGTERM, daemon_term_handler)
-            loop_ip_forever()
-            os.unlink(PID_FILE)
+            loop_ip_forever(True)
+            remove_pid()
             sys.exit(1)
 
 if is_b2():
@@ -208,6 +94,7 @@ for iline in p.stdout:
         usb_mounted = True
 t.join()
 p.wait()
+
 if usb_mounted:
     logging.info('/mnt/usb already mounted ; skipping USB key detection')
 else:
@@ -258,21 +145,27 @@ if not foreground:
 # ------------------------------------
 
 def do_install():
+    global error
     if not config.has_option('general', 'image'):
         logging.info('No image in configuration. Exiting leaving the rescue system')
         return
 
 if foreground:
     try:
+        error = False
         do_install()
         # we never reboot neither loop with ip in foreground
-        led_rescue()
+        if error:
+            led_error()
+        else:
+            led_rescue()
     except:
         logging.exception("Exception in the main function :")
         led_error()
         sys.exit(1)
     finally:
         logging.shutdown()
+    sys.exit(0)
 else:
     with daemon.DaemonContext():
         logging.basicConfig(format='%(asctime)s.%(msecs)d - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %I:%M:%S',
@@ -286,7 +179,7 @@ else:
 
         try:
             do_install()
-            if config.getboolean('general', 'reboot'):
+            if not error and config.getboolean('general', 'reboot'):
                 os.system('/sbin/reboot')
         except:
             logging.exception("Exception in the main daemon function :")
@@ -295,5 +188,5 @@ else:
             os.unlink(PID_FILE)
             logging.shutdown()
 
-        loop_ip_forever()
+        loop_ip_forever(error)
         os.unlink(PID_FILE)

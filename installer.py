@@ -3,13 +3,14 @@
 __author__ = 'Charles Leclerc'
 
 import daemon
-import os
 import os.path
+import logging
 import sys
 import ConfigParser
 from signal import signal, SIGTERM
 
-from utils import *
+import utils
+import disks
 
 CONFIG_FILE = '/mnt/usb/install/install.ini'
 PID_FILE = '/var/run/installer.pid'
@@ -44,7 +45,7 @@ if os.path.exists(PID_FILE):
 # Exit the script in early phase due to install key not found/not mounted or no configuration file found
 def early_exit():
     logging.info("Configuring network with default settings")
-    configure_network()
+    utils.configure_network()
     logging.warning("Install script ended with errors")
     logging.shutdown()
     if foreground:
@@ -54,11 +55,11 @@ def early_exit():
         with daemon.DaemonContext():
             write_pid()
             signal(SIGTERM, daemon_term_handler)
-            loop_ip_forever(True)
+            utils.loop_ip_forever(True)
             remove_pid()
             sys.exit(1)
 
-if is_b2():
+if utils.is_b2():
     from b2_led_manager import *
 else:
     from b3_led_manager import *
@@ -79,6 +80,8 @@ else:
 
 # Configuration defaults
 config = ConfigParser.SafeConfigParser()
+utils.config = config
+
 for s in ('wan', 'lan'):
     config.add_section(s)
     config.set(s, 'proto', 'dhcp')
@@ -86,7 +89,7 @@ config.add_section('general')
 config.set('general', 'reboot', 'true')
 
 # check if USB key is already mounted, search and mount otherwise
-p, t = runcmd2(['cat', '/proc/mounts'])
+p, t = utils.runcmd2(['cat', '/proc/mounts'])
 usb_mounted = False
 for iline in p.stdout:
     cc = iline.split()
@@ -115,7 +118,7 @@ else:
 
     if attempts:
         logging.info("Mounting USB install key")
-        if runcmd1(['mount', '/dev/%s1' % (usb_dev, ), '/mnt/usb']):
+        if utils.runcmd1(['mount', '/dev/%s1' % (usb_dev, ), '/mnt/usb']):
             logging.error('Unable to mount USB key !')
             early_exit()
     else:
@@ -131,7 +134,7 @@ else:
     logging.error('No configuration file found on USB key !')
     early_exit()
 
-configure_network()
+utils.configure_network()
 
 if not foreground:
     logging.info("Initialization done. Preparing daemon forking")
@@ -145,10 +148,14 @@ if not foreground:
 # ------------------------------------
 
 def do_install():
-    global error
+    global error, config
     if not config.has_option('general', 'image'):
         logging.info('No image in configuration. Exiting leaving the rescue system')
         return
+    if not disks.load_and_check_conf():
+        error = True
+        return
+
 
 if foreground:
     try:
@@ -188,5 +195,5 @@ else:
             os.unlink(PID_FILE)
             logging.shutdown()
 
-        loop_ip_forever(error)
+        utils.loop_ip_forever(error)
         os.unlink(PID_FILE)

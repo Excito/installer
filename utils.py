@@ -4,7 +4,12 @@ from threading import Thread
 import netifaces
 import logging
 import os.path
+from ConfigParser import NoOptionError, NoSectionError
 
+config = None
+
+class InvalidConf(Exception):
+    pass
 
 # ------------------------------------
 # ----- Useful functions -------------
@@ -49,7 +54,8 @@ def runcmd2(cmd):
 
 
 # write /etc/network/interfaces from configuration
-def configure_network(config):
+def configure_network():
+    global config
     logging.info('Writing /etc/network/interfaces')
     o = open('/etc/network/interfaces', 'a')
     for s, i in (('wan', 'eth0'), ('lan', 'eth1')):
@@ -124,3 +130,74 @@ def loop_ip_forever(error=False):
                 sleep(0.5)
                 b3_print_integer(n)
             sleep(0.2)
+
+def get_check_conf(section, option, default=None, values=[]):
+    global config
+    try:
+        res = config.get(section, option)
+    except NoSectionError:
+        if default is not None:
+            return default
+        else:
+            logging.error('%s section missing !' % (section, ))
+            raise InvalidConf('%s section missing !' % (section, ))
+    except NoOptionError:
+        if default is not None:
+            return default
+        else:
+            logging.error('%s value missing from section %s !' % (option, section))
+            raise InvalidConf('%s value missing from section %s!' % (option, section))
+    if values and res not in values:
+        logging.error('Invalid value for %s in section %s (possible values: %s)' % (option, section, ','.join(values)))
+        raise InvalidConf('Invalid value for %s in section %s (possible values: %s)'
+                          % (option, section, ','.join(values)))
+    return res
+
+def getint_check_conf(section, option, default=None, min_value=None, max_value=None):
+    global config
+    try:
+        res = config.getint(section, option)
+    except NoSectionError:
+        if default is not None:
+            return default
+        else:
+            logging.error('%s section missing !' % (section, ))
+            raise InvalidConf('%s section missing !' % (section, ))
+    except NoOptionError:
+        if default is not None:
+            return default
+        else:
+            logging.error('%s value missing from section %s!' % (option, section))
+            raise InvalidConf('%s value missing from section %s!' % (option, section))
+    except ValueError:
+        logging.error('Malformed integer value for %s in section %s' % (option, section))
+        raise InvalidConf('Malformed integer value for %s in section %s' % (option, section))
+    if min_value and res < min_value:
+        logging.error('Invalid integer value for %s in section %s (minimum value: %i)' % (option, section, min_value))
+        raise InvalidConf('Invalid integer value for %s in section %s (minimum value: %i)'
+                          % (option, section, min_value))
+    if max_value and res > min_value:
+        logging.error('Invalid integer value for %s in section %s (maximum value: %i)' % (option, section, max_value))
+        raise InvalidConf('Invalid integer value for %s in section %s (maximum value: %i)'
+                          % (option, section, max_value))
+    return res
+
+def getboolean_check_conf(section, option, default=None):
+    global config
+    try:
+        return config.getboolean(section, option)
+    except NoSectionError:
+        if default is not None:
+            return default
+        else:
+            logging.error('%s section missing !' % (section, ))
+            raise InvalidConf('%s section missing !' % (section, ))
+    except NoOptionError:
+        if default is not None:
+            return default
+        else:
+            logging.error('%s value missing from section %s!' % (option, section))
+            raise InvalidConf('%s value missing from section %s!' % (option, section))
+    except ValueError:
+        logging.error('Malformed booleam value for %s in section %s' % (option, section))
+        raise InvalidConf('Malformed boolean value for %s in section %s' % (option, section))

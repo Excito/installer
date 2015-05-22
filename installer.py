@@ -71,7 +71,7 @@ foreground = len(sys.argv) > 1 and sys.argv[1] == '-f'
 
 if foreground:
     # Everyting to the console
-    logging.basicConfig(format='%(asctime)s - %(message)s', datefmt='%I:%M:%S',
+    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%I:%M:%S',
                         level=logging.INFO)
 else:
     # Early log facility in /root folder

@@ -176,7 +176,7 @@ def getint_check_conf(section, option, default=None, min_value=None, max_value=N
         logging.error('Invalid integer value for %s in section %s (minimum value: %i)' % (option, section, min_value))
         raise InvalidConf('Invalid integer value for %s in section %s (minimum value: %i)'
                           % (option, section, min_value))
-    if max_value and res > min_value:
+    if max_value and res > max_value:
         logging.error('Invalid integer value for %s in section %s (maximum value: %i)' % (option, section, max_value))
         raise InvalidConf('Invalid integer value for %s in section %s (maximum value: %i)'
                           % (option, section, max_value))

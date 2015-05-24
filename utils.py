@@ -5,10 +5,14 @@ import netifaces
 import logging
 import os.path
 from ConfigParser import NoOptionError, NoSectionError
+import shlex
 
 config = None
 
 class InvalidConf(Exception):
+    pass
+
+class DiskError(Exception):
     pass
 
 # ------------------------------------
@@ -17,41 +21,64 @@ class InvalidConf(Exception):
 
 # Run the specified command redirecting all output to logging
 # Returns the command return code
-def runcmd1(cmd):
-    logging.info("Running [%s]" % (','.join(cmd)))
-    p = Popen(cmd, stdout=PIPE, stderr=PIPE)
-
-    def follow_stderr():
+def runcmd1(cmd, ign_out=False, ign_err=False):
+    logging.info("Running '%s'" % (" ".join(cmd)))
+    if ign_out and ign_err:
+        p = Popen(cmd)
+    elif ign_out:
+        p = Popen(cmd, stderr=PIPE)
         for eline in p.stderr:
             logging.error(eline)
-
-    t = Thread(target=follow_stderr)
-    t.start()
-    for iline in p.stdout:
-        logging.info(iline)
-    t.join()
-    p.wait()
-    if p.returncode:
-        logging.error("[%s] returned status %i" % (','.join(cmd), p.returncode))
+    elif ign_err:
+        p = Popen(cmd, stdout=PIPE)
+        for iline in p.stdout:
+            logging.info(iline)
     else:
-        logging.info("[%s] returned status %i" % (','.join(cmd), p.returncode))
+        p = Popen(cmd, stdout=PIPE, stderr=PIPE)
+
+        def follow_stderr():
+            for eline in p.stderr:
+                logging.error(eline)
+
+        t = Thread(target=follow_stderr)
+        t.start()
+        for iline in p.stdout:
+            logging.info(iline)
+        t.join()
+
+    p.wait()
+
+    if p.returncode:
+        logging.error("'%s' returned status %i" % (' '.join(cmd), p.returncode))
+    else:
+        logging.debug("'%s' returned status %i" % (' '.join(cmd), p.returncode))
+
     return p.returncode
 
 
 # Run the specified command redirecting only stderr to logging
-# Returns the process reference and the stderr writing thread
-def runcmd2(cmd):
-    logging.info("Running [%s]" % (','.join(cmd)))
-    p = Popen(cmd, stdout=PIPE, stderr=PIPE)
+# Returns the process returncode and the complete output (array containing lines)
+def runcmd2(cmd, ign_err=False):
+    logging.info("Running '%s'" % (" ".join(cmd)))
+    output = []
+    if ign_err:
+        p = Popen(cmd, stdout=PIPE)
+        for iline in p.stdout:
+            output.append(iline)
+    else:
+        p = Popen(cmd, stdout=PIPE, stderr=PIPE)
 
-    def follow_stderr():
-        for eline in p.stderr:
-            logging.error(eline)
+        def follow_stderr():
+            for eline in p.stderr:
+                logging.error(eline)
 
-    t = Thread(target=follow_stderr)
-    t.start()
-    return p, t
-
+        t = Thread(target=follow_stderr)
+        t.start()
+        for iline in p.stdout:
+            output.append(iline)
+        t.join()
+    p.wait()
+    return p.returncode, output
 
 # write /etc/network/interfaces from configuration
 def configure_network():
@@ -201,3 +228,15 @@ def getboolean_check_conf(section, option, default=None):
     except ValueError:
         logging.error('Malformed booleam value for %s in section %s' % (option, section))
         raise InvalidConf('Malformed boolean value for %s in section %s' % (option, section))
+
+def get_blkid_info(dev):
+    rc, output = runcmd2(['blkid', dev], True)
+    res = {}
+    if output:
+        l = output[0]
+        for var in shlex.split(l[len(dev)+2:]):
+            kv = var.split('=')
+            if kv[1] == 'LVM2_member':
+                kv[1] = 'lvm'
+            res[kv[0]] = kv[1]
+    return res

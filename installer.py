@@ -44,8 +44,9 @@ if os.path.exists(PID_FILE):
 
 # Exit the script in early phase due to install key not found/not mounted or no configuration file found
 def early_exit():
-    logging.info("Configuring network with default settings")
-    utils.configure_network()
+    if not foreground:
+        logging.info("Configuring network with default settings")
+        utils.configure_network()
     logging.warning("Install script ended with errors")
     logging.shutdown()
     if foreground:
@@ -71,11 +72,11 @@ foreground = len(sys.argv) > 1 and sys.argv[1] == '-f'
 
 if foreground:
     # Everyting to the console
-    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%I:%M:%S',
+    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%H:%M:%S',
                         level=logging.INFO)
 else:
     # Early log facility in /root folder
-    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %I:%M:%S',
+    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S',
                         level=logging.INFO, filename='/root/install-early.log')
 
 # Configuration defaults
@@ -89,14 +90,12 @@ config.add_section('general')
 config.set('general', 'reboot', 'true')
 
 # check if USB key is already mounted, search and mount otherwise
-p, t = utils.runcmd2(['cat', '/proc/mounts'])
+rc, output = utils.runcmd2(['cat', '/proc/mounts'])
 usb_mounted = False
-for iline in p.stdout:
+for iline in output:
     cc = iline.split()
     if cc[1] == '/mnt/usb':
         usb_mounted = True
-t.join()
-p.wait()
 
 if usb_mounted:
     logging.info('/mnt/usb already mounted ; skipping USB key detection')
@@ -134,7 +133,8 @@ else:
     logging.error('No configuration file found on USB key !')
     early_exit()
 
-utils.configure_network()
+if not foreground:
+    utils.configure_network()
 
 if not foreground:
     logging.info("Initialization done. Preparing daemon forking")
@@ -149,10 +149,15 @@ if not foreground:
 
 def do_install():
     global error, config
-    if not config.has_option('general', 'image'):
-        logging.info('No image in configuration. Exiting leaving the rescue system')
-        return
+    u_boot_reconfig = utils.getboolean_check_conf('general', 'u-boot-reconfig', False)
     if not disks.load_and_check_conf():
+        error = True
+        return
+    if not disks.verify_existing():
+        error = True
+        return
+    if disks.needs_uboot_reconfig() and not u_boot_reconfig:
+        logging.error('Chosen disk configuration needs U-Boot configuration change, yet u-boot-reconfig is False')
         error = True
         return
 
@@ -160,7 +165,10 @@ def do_install():
 if foreground:
     try:
         error = False
-        do_install()
+        if config.has_option('general', 'image'):
+            do_install()
+        else:
+            logging.info('No image in configuration. Exiting leaving the rescue system')
         # we never reboot neither loop with ip in foreground
         if error:
             led_error()
@@ -185,9 +193,12 @@ else:
         logging.info("Running installer daemon process with pid %i" % (os.getpid(), ))
 
         try:
-            do_install()
-            if not error and config.getboolean('general', 'reboot'):
-                os.system('/sbin/reboot')
+            if config.has_option('general', 'image'):
+                do_install()
+                if not error and config.getboolean('general', 'reboot'):
+                    os.system('/sbin/reboot')
+            else:
+                logging.info('No image in configuration. Exiting leaving the rescue system')
         except:
             logging.exception("Exception in the main daemon function :")
             error = True

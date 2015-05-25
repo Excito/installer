@@ -1,5 +1,5 @@
 
-from subprocess import Popen, PIPE
+from subprocess import Popen, PIPE, STDOUT
 from threading import Thread
 import netifaces
 import logging
@@ -21,37 +21,36 @@ class DiskError(Exception):
 
 # Run the specified command redirecting all output to logging
 # Returns the command return code
-def runcmd1(cmd, ign_out=False, ign_err=False):
+def runcmd1(cmd, ign_out=False, ign_err=False, err_to_out=False):
     logging.info("Running '%s'" % (" ".join(cmd)))
     if ign_out and ign_err:
-        p = Popen(cmd)
+        p = Popen(cmd, stdout=open('/dev/null', 'w'), stderr=STDOUT)
     elif ign_out:
-        p = Popen(cmd, stderr=PIPE)
+        p = Popen(cmd, stdout=open('/dev/null', 'w'), stderr=PIPE)
         for eline in p.stderr:
-            logging.error(eline)
+            logging.error('[cmd] '+eline.strip())
     elif ign_err:
-        p = Popen(cmd, stdout=PIPE)
+        p = Popen(cmd, stdout=PIPE, stderr=open('/dev/null', 'w'))
         for iline in p.stdout:
-            logging.info(iline)
+            logging.info('[cmd] '+iline.strip())
+    elif err_to_out:
+        p = Popen(cmd, stdout=PIPE, stderr=STDOUT)
+        for iline in p.stdout:
+            logging.info('[cmd] '+iline.strip())
     else:
         p = Popen(cmd, stdout=PIPE, stderr=PIPE)
 
         def follow_stderr():
             for eline in p.stderr:
-                logging.error(eline)
+                logging.error('[cmd] '+eline.strip())
 
         t = Thread(target=follow_stderr)
         t.start()
         for iline in p.stdout:
-            logging.info(iline)
+            logging.info('[cmd] '+iline.strip())
         t.join()
 
     p.wait()
-
-    if p.returncode:
-        logging.error("'%s' returned status %i" % (' '.join(cmd), p.returncode))
-    else:
-        logging.debug("'%s' returned status %i" % (' '.join(cmd), p.returncode))
 
     return p.returncode
 
@@ -62,7 +61,7 @@ def runcmd2(cmd, ign_err=False):
     logging.info("Running '%s'" % (" ".join(cmd)))
     output = []
     if ign_err:
-        p = Popen(cmd, stdout=PIPE)
+        p = Popen(cmd, stdout=PIPE, stderr=open('/dev/null', 'w'))
         for iline in p.stdout:
             output.append(iline)
     else:
@@ -70,7 +69,7 @@ def runcmd2(cmd, ign_err=False):
 
         def follow_stderr():
             for eline in p.stderr:
-                logging.error(eline)
+                logging.error('[cmd] '+eline.strip())
 
         t = Thread(target=follow_stderr)
         t.start()

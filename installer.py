@@ -90,12 +90,13 @@ config.add_section('general')
 config.set('general', 'reboot', 'true')
 
 # check if USB key is already mounted, search and mount otherwise
-rc, output = utils.runcmd2(['cat', '/proc/mounts'])
+mounts = open('/proc/mounts', 'r')
 usb_mounted = False
-for iline in output:
+for iline in mounts:
     cc = iline.split()
     if cc[1] == '/mnt/usb':
         usb_mounted = True
+mounts.close()
 
 if usb_mounted:
     logging.info('/mnt/usb already mounted ; skipping USB key detection')
@@ -153,7 +154,7 @@ def do_install():
     if not disks.load_and_check_conf():
         error = True
         return
-    if not disks.verify_existing():
+    if not disks.inventory_existing():
         error = True
         return
     if disks.needs_uboot_reconfig() and not u_boot_reconfig:

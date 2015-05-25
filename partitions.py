@@ -10,6 +10,8 @@ def get_disk_details(dev):
     fdev = '/dev/'+dev
     res['dev'] = fdev
     rc, fd_output = utils.runcmd2(['fdisk', '-l', fdev])
+    if rc:
+        raise DiskError
     l_type = None
     for iline in fd_output:
         if iline.startswith('Disklabel type'):

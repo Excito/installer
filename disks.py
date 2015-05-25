@@ -4,20 +4,25 @@ import os
 import logging
 from utils import get_check_conf, getboolean_check_conf, getint_check_conf, InvalidConf, DiskError, is_b2
 import re
-import lvm, raid, partitions
+import lvm
+import raid
+import partitions
 
 conf_disks = dict()
 conf_lvm = dict()
 conf_raid = dict()
 conf_mountpoints = dict()
 
+disks_details = dict()
+lvm_details = dict()
+raid_details = dict()
+
 def list_sata_disks():
     res = []
-    for d in [f for f in os.listdir('/sys/block') if f.startswith('sd')]:
+    for d in [f for f in os.listdir('/sys/block') if re.match('sd[a-z]$', f)]:
         if '/ata' in os.readlink(os.path.join('/sys/block', d)):
             res.append(d)
     return sorted(res)
-
 
 def convert_size(sz, ref):
     if sz.lower() == 'remaining':
@@ -52,7 +57,7 @@ def valid_moutpoint(mp, d):
     conf_mountpoints[mp] = d
 
 def load_and_check_conf():
-    global conf_disks
+    global conf_disks, conf_lvm, conf_raid, conf_mountpoints
     conf_disks.clear()
     conf_lvm.clear()
     conf_raid.clear()
@@ -72,7 +77,7 @@ def load_and_check_conf():
             s_name = 'disk%i' % (i, )
             conf_disks[i] = dict()
             d_name = sata_disks[i-1]
-            conf_disks[i]['device'] = d_name
+            conf_disks[i]['dev'] = d_name
             conf_disks[i]['create'] = getboolean_check_conf(s_name, 'create', default=True)
             disk_total = getint_check_conf(s_name, 'total', min_value=1)
             r_present = False
@@ -115,6 +120,8 @@ def load_and_check_conf():
             s_name = 'raid-array%i' % (i,)
             conf_raid[i] = dict()
             conf_raid[i]['create'] = getboolean_check_conf(s_name, 'create', default=True)
+            d_name = 'md%i' % (i - 1)
+            conf_raid[i]['dev'] = d_name
             if conf_raid[i]['create']:
                 conf_raid[i]['devices'] = []
                 for d in [s.strip() for s in get_check_conf(s_name, 'devices').split(',')]:
@@ -122,7 +129,6 @@ def load_and_check_conf():
                         logging.error('[%s] Invalid or inexistent device for raid array : %s' % (s_name, d))
                         return False
                     conf_raid[i]['devices'].append(phys_raid_map[d])
-            d_name = 'md%i' % (i - 1)
             conf_raid[i]['type'] = get_check_conf(s_name, 'type', values=['data', 'swap', 'lvm'])
             if conf_raid[i]['type'] == 'data':
                 conf_raid[i]['format'] = conf_raid[i]['create'] or getboolean_check_conf(s_name, 'format', default=True)
@@ -198,20 +204,44 @@ def load_and_check_conf():
     except InvalidConf:
         return False
 
-    print conf_disks
     return True
 
-def verify_existing():
+def inventory_existing():
+    global disks_details, lvm_details, raid_details
     try:
-        for i in conf_disks:
-            dev = conf_disks[i]['device']
+        disks_details = {}
+        for dev in list_sata_disks():
             logging.info('Checking /dev/%s' % (dev,))
-            disk_details = partitions.get_disk_details(dev)
+            disks_details[dev] = partitions.get_disk_details(dev)
+
+        raid.start_all_arrays()
+
+        lvm.start_all_vg()
+
+        raid_details = {}
+        for dev in raid.list_raid_arrays():
+            logging.info('Checking /dev/%s' % (dev,))
+            raid_details[dev] = raid.get_raid_details(dev)
 
         lvm_details = lvm.get_lvm_details()
-        raid_details = raid.get_raid_details()
+
+        print disks_details
+        print raid_details
+        print lvm_details
+
     except DiskError:
         return False
+    except InvalidConf:
+        return False
+    finally:
+        try:
+            lvm.stop_all_vg()
+        except:
+            pass
+        try:
+            raid.stop_all_arrays()
+        except:
+            pass
     return True
 
 

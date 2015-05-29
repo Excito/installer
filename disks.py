@@ -66,7 +66,7 @@ def load_and_check_conf():
     phys_raid_map = {}
     phys_lvm_map = {}
     try:
-        disks_total = getint_check_conf('disks', 'total', min_value=1, max_value=3 if is_b2() else 2)
+        disks_total = getint_check_conf('disks', 'total', min_value=1, max_value=2)
         sata_disks = list_sata_disks()
         if len(sata_disks) < disks_total:
             logging.error('Not enough disks in the device to applyc configuration')

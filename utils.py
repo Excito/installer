@@ -117,19 +117,24 @@ def get_first_ip_relevant_numbers():
     return None
 
 
-# Detect if we're running on a Bubba|2 (if not we're on a B3)
+# Detect if we're running on a Bubba|2
 def is_b2():
     return os.path.exists('/sys/devices/platform/bubbatwo')
 
+# Detect if we're running on a B3
+def is_b3():
+    return os.path.exists('/sys/class/leds/bubba3:blue:active')
 
 if is_b2():
     from b2_led_manager import *
-else:
+elif is_b3():
     from b3_led_manager import *
+else:
+    from test_led_manager import *
 
 
 def loop_ip_forever(error=False):
-    if is_b2():
+    if is_b2() or not is_b3():
         if error:
             led_error()
         else:

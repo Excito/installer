@@ -1,1 +1,4 @@
 .idea
+install-test.ini
+*.log
+test/*

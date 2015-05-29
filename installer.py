@@ -13,6 +13,7 @@ import utils
 import disks
 
 CONFIG_FILE = '/mnt/usb/install/install.ini'
+LOG_FILE = '/mnt/usb/install/install.log'
 PID_FILE = '/var/run/installer.pid'
 
 
@@ -62,8 +63,10 @@ def early_exit():
 
 if utils.is_b2():
     from b2_led_manager import *
-else:
+elif utils.is_b3():
     from b3_led_manager import *
+else:
+    from test_led_manager import *
 
 led_install()
 
@@ -89,41 +92,47 @@ for s in ('wan', 'lan'):
 config.add_section('general')
 config.set('general', 'reboot', 'true')
 
-# check if USB key is already mounted, search and mount otherwise
-mounts = open('/proc/mounts', 'r')
-usb_mounted = False
-for iline in mounts:
-    cc = iline.split()
-    if cc[1] == '/mnt/usb':
-        usb_mounted = True
-mounts.close()
+if utils.is_b3() or utils.is_b2():
+    # check if USB key is already mounted, search and mount otherwise
+    mounts = open('/proc/mounts', 'r')
+    usb_mounted = False
+    for iline in mounts:
+        cc = iline.split()
+        if cc[1] == '/mnt/usb':
+            usb_mounted = True
+    mounts.close()
 
-if usb_mounted:
-    logging.info('/mnt/usb already mounted ; skipping USB key detection')
-else:
-    # search and mount USB key
-    usb_dev = ''
-    attempts = 5
-    while attempts:
-        logging.info("Searching for USB install key")
-        for d in [f for f in os.listdir('/sys/block') if f.startswith('sd')]:
-            if '/usb' in os.readlink(os.path.join('/sys/block', d)):
-                usb_dev = d
-                break
-        if usb_dev:
-            break
-        else:
-            sleep(2)
-        attempts -= 1
-
-    if attempts:
-        logging.info("Mounting USB install key")
-        if utils.runcmd1(['mount', '/dev/%s1' % (usb_dev, ), '/mnt/usb']):
-            logging.error('Unable to mount USB key !')
-            early_exit()
+    if usb_mounted:
+        logging.info('/mnt/usb already mounted ; skipping USB key detection')
     else:
-        logging.error('Unable to detect USB key !')
-        early_exit()
+        # search and mount USB key
+        usb_dev = ''
+        attempts = 5
+        while attempts:
+            logging.info("Searching for USB install key")
+            for d in [f for f in os.listdir('/sys/block') if f.startswith('sd')]:
+                if '/usb' in os.readlink(os.path.join('/sys/block', d)):
+                    usb_dev = d
+                    break
+            if usb_dev:
+                break
+            else:
+                sleep(2)
+            attempts -= 1
+
+        if attempts:
+            logging.info("Mounting USB install key")
+            if utils.runcmd1(['mount', '/dev/%s1' % (usb_dev, ), '/mnt/usb']):
+                logging.error('Unable to mount USB key !')
+                early_exit()
+        else:
+            logging.error('Unable to detect USB key !')
+            early_exit()
+else:
+    logging.info('Test environment ; skipping usb mount')
+    CONFIG_FILE = '/opt/excito/install-test.ini'
+    LOG_FILE = '/opt/excito/install-test.log'
+
 
 if os.path.exists(CONFIG_FILE):
     logging.info('Loading configuration from ' + CONFIG_FILE)
@@ -136,8 +145,6 @@ else:
 
 if not foreground:
     utils.configure_network()
-
-if not foreground:
     logging.info("Initialization done. Preparing daemon forking")
     # Logging facility shutdown
     logging.shutdown()
@@ -185,7 +192,7 @@ if foreground:
 else:
     with daemon.DaemonContext():
         logging.basicConfig(format='%(asctime)s.%(msecs)d - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %I:%M:%S',
-                            level=logging.INFO, filename="/mnt/usb/install/install.log")
+                            level=logging.INFO, filename=LOG_FILE)
         error = False
 
         write_pid()

@@ -13,13 +13,23 @@ def get_disk_details(dev):
     if rc:
         raise DiskError
     l_type = None
+    size = 0
     for iline in fd_output:
-        if iline.startswith('Disklabel type'):
+        if iline.startswith('Disk %s' % (fdev, )):
+            d_size = iline.split()
+            size = long(d_size[d_size.index('bytes,')-1])
+        elif iline.startswith('Disklabel type'):
             l_type = iline[16:].strip()
 
-    if not l_type:
-        logging.error('Unable to parse disklabel type ??!!??')
+    if size == 0:
+        logging.error('Unable to read the size of disk %s' % (fdev, ))
         raise DiskError
+    else:
+        res['size'] = size
+
+    if not l_type:
+        res['type'] = None
+        res['parts'] = {}
     elif l_type == 'gpt':
         res['type'] = 'gpt'
         res['parts'] = {}
@@ -64,3 +74,20 @@ def get_disk_details(dev):
         logging.error('Unsupported disklabel type : %s' % (l_type, ))
         raise DiskError
     return res
+
+def is_partition_type_valid(disk_type, part_type, part_details):
+    if part_type == 'data':
+        if disk_type == 'gpt':
+            return part_details['code'] in ('8300', '0700')
+        else:
+            return part_details['id'] in ('83', )
+    elif part_type == 'raid':
+        if disk_type == 'gpt':
+            return part_details['code'] in ('fd00', )
+        else:
+            return part_details['id'] in ('fd', )
+    elif part_type == 'lvm':
+        if disk_type == 'gpt':
+            return part_details['code'] in ('8e00', )
+        else:
+            return part_details['id'] in ('8e', )

@@ -161,9 +161,15 @@ def do_install():
     if not disks.load_and_check_conf():
         error = True
         return
+
     if not disks.inventory_existing():
         error = True
         return
+
+    if not disks.check_existing():
+        error = True
+        return
+
     if disks.needs_uboot_reconfig() and not u_boot_reconfig:
         logging.error('Chosen disk configuration needs U-Boot configuration change, yet u-boot-reconfig is False')
         error = True
@@ -191,14 +197,15 @@ if foreground:
     sys.exit(0)
 else:
     with daemon.DaemonContext():
-        logging.basicConfig(format='%(asctime)s.%(msecs)d - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %I:%M:%S',
-                            level=logging.INFO, filename=LOG_FILE)
-        error = False
-
         write_pid()
         signal(SIGTERM, daemon_term_handler)
 
+        logging.basicConfig(format='%(asctime)s.%(msecs)d - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %I:%M:%S',
+                            level=logging.INFO, filename=LOG_FILE)
+
         logging.info("Running installer daemon process with pid %i" % (os.getpid(), ))
+
+        error = False
 
         try:
             if config.has_option('general', 'image'):

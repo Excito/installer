@@ -69,7 +69,7 @@ def load_and_check_conf():
         disks_total = getint_check_conf('disks', 'total', min_value=1, max_value=2)
         sata_disks = list_sata_disks()
         if len(sata_disks) < disks_total:
-            logging.error('Not enough disks in the device to applyc configuration')
+            logging.error('Not enough disks in the device to apply cconfiguration')
             return False
 
         # Partitions
@@ -225,10 +225,6 @@ def inventory_existing():
 
         lvm_details = lvm.get_lvm_details()
 
-        print disks_details
-        print raid_details
-        print lvm_details
-
     except DiskError:
         return False
     except InvalidConf:
@@ -244,6 +240,14 @@ def inventory_existing():
             pass
     return True
 
+def check_existing():
+    logging.info(conf_disks.__str__())
+    logging.info(disks_details.__str__())
+    for i in [i for i in conf_disks if not conf_disks[i]['create']]:
+        logging.info('Checking consistency for kept disk%i' % (i, ))
+        logging.info(conf_disks[i].__str__())
+        for j in [j for j in conf_disks[i] if j.isdigit()]:
+            pass
 
 
 def needs_uboot_reconfig():

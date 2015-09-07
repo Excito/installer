@@ -1,5 +1,6 @@
 from time import sleep
 
+
 def b3_set_color(color):
     r = 0
     g = 0
@@ -31,14 +32,18 @@ def b3_set_color(color):
     b_f.write(str(b))
     b_f.close()
 
+
 def led_install():
     b3_set_color('cyan')
+
 
 def led_error():
     b3_set_color('red')
 
+
 def led_rescue():
     b3_set_color('green')
+
 
 def b3_print_integer(n):
     for i in n:

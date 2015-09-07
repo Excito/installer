@@ -75,6 +75,7 @@ def get_disk_details(dev):
         raise DiskError
     return res
 
+
 def is_partition_type_valid(disk_type, part_type, part_details):
     if part_type == 'data':
         if disk_type == 'gpt':

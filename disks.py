@@ -17,12 +17,14 @@ disks_details = dict()
 lvm_details = dict()
 raid_details = dict()
 
+
 def list_sata_disks():
     res = []
     for d in [f for f in os.listdir('/sys/block') if re.match('sd[a-z]$', f)]:
         if '/ata' in os.readlink(os.path.join('/sys/block', d)):
             res.append(d)
     return sorted(res)
+
 
 def convert_size(sz, ref):
     if sz.lower() == 'remaining':
@@ -46,6 +48,7 @@ def convert_size(sz, ref):
             logging.error('Invalid size format for %s: %s' % (ref, sz))
             raise InvalidConf
 
+
 def valid_moutpoint(mp, d):
     global conf_mountpoints
     if mp != '/' and not re.match('(/[a-zA-Z0-9-+.]+)+', mp):
@@ -55,6 +58,7 @@ def valid_moutpoint(mp, d):
         logging.error('[%s] Mountpoint %s already attributed to %s!' % (d, mp, conf_mountpoints[mp]))
         raise InvalidConf
     conf_mountpoints[mp] = d
+
 
 def load_and_check_conf():
     global conf_disks, conf_lvm, conf_raid, conf_mountpoints
@@ -206,6 +210,7 @@ def load_and_check_conf():
 
     return True
 
+
 def inventory_existing():
     global disks_details, lvm_details, raid_details
     try:
@@ -239,6 +244,7 @@ def inventory_existing():
         except:
             pass
     return True
+
 
 def check_existing():
     logging.info(conf_disks.__str__())

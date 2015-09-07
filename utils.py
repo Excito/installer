@@ -9,11 +9,14 @@ import shlex
 
 config = None
 
+
 class InvalidConf(Exception):
     pass
 
+
 class DiskError(Exception):
     pass
+
 
 # ------------------------------------
 # ----- Useful functions -------------
@@ -79,6 +82,7 @@ def runcmd2(cmd, ign_err=False):
     p.wait()
     return p.returncode, output
 
+
 # write /etc/network/interfaces from configuration
 def configure_network():
     global config
@@ -121,6 +125,7 @@ def get_first_ip_relevant_numbers():
 def is_b2():
     return os.path.exists('/sys/devices/platform/bubbatwo')
 
+
 # Detect if we're running on a B3
 def is_b3():
     return os.path.exists('/sys/class/leds/bubba3:blue:active')
@@ -162,6 +167,7 @@ def loop_ip_forever(error=False):
                 b3_print_integer(n)
             sleep(0.2)
 
+
 def get_check_conf(section, option, default=None, values=[]):
     global config
     try:
@@ -183,6 +189,7 @@ def get_check_conf(section, option, default=None, values=[]):
         raise InvalidConf('Invalid value for %s in section %s (possible values: %s)'
                           % (option, section, ','.join(values)))
     return res
+
 
 def getint_check_conf(section, option, default=None, min_value=None, max_value=None):
     global config
@@ -213,6 +220,7 @@ def getint_check_conf(section, option, default=None, min_value=None, max_value=N
                           % (option, section, max_value))
     return res
 
+
 def getboolean_check_conf(section, option, default=None):
     global config
     try:
@@ -232,6 +240,7 @@ def getboolean_check_conf(section, option, default=None):
     except ValueError:
         logging.error('Malformed booleam value for %s in section %s' % (option, section))
         raise InvalidConf('Malformed boolean value for %s in section %s' % (option, section))
+
 
 def get_blkid_info(dev):
     rc, output = runcmd2(['blkid', dev], True)

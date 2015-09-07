@@ -4,12 +4,15 @@ import utils
 import os
 import re
 
+
 def list_raid_arrays():
     res = [f for f in os.listdir('/sys/block') if re.match('md[0-9]+$', f)]
     return sorted(res)
 
+
 def start_all_arrays():
     utils.runcmd1(['mdadm', '--assemble', '--scan'], err_to_out=True)
+
 
 def stop_all_arrays():
     error = False
@@ -18,6 +21,7 @@ def stop_all_arrays():
             error = True
     if error:
         raise utils.DiskError
+
 
 def get_raid_details(dev):
     res = {}

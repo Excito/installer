@@ -4,15 +4,18 @@ import utils
 import os.path
 import logging
 
+
 def start_all_vg():
     if utils.runcmd1(['vgchange', '-ay']):
         logging.error('Unable to activate volume groups !')
         raise utils.DiskError
 
+
 def stop_all_vg():
     if utils.runcmd1(['vgchange', '-an']):
         logging.error('Unable to deactivate volume groups !')
         raise utils.DiskError
+
 
 def get_lvm_details():
     res = {}

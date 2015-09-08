@@ -1,7 +1,5 @@
 #! /usr/bin/python
 
-__author__ = 'Charles Leclerc <leclerc.charles@gmail.com>'
-
 import daemon
 import os.path
 import logging
@@ -11,6 +9,8 @@ from signal import signal, SIGTERM
 
 import utils
 import disks
+
+__author__ = 'Charles Leclerc <leclerc.charles@gmail.com>'
 
 CONFIG_FILE = '/mnt/usb/install/install.ini'
 LOG_FILE = '/mnt/usb/install/install.log'
@@ -92,10 +92,6 @@ utils.config = config
 for s in ('wan', 'lan'):
     config.add_section(s)
     config.set(s, 'proto', 'dhcp')
-config.add_section('general')
-config.set('general', 'wipe', 'false')
-config.set('general', 'size', '10')
-config.set('general', 'reboot', 'true')
 
 if not (utils.is_b3() or utils.is_b2()):
     logging.info('Test environment ; using config from installer directory')
@@ -128,6 +124,19 @@ def do_install():
     global error, config
 
     if not disks.inventory_existing():
+        error = True
+        return
+
+    if len(disks.disks_details) == 0:
+        logging.error("No SATA disk found !")
+        error = True
+        return
+
+    dest = disks.disks_details.keys()[0]
+    sz = utils.getint_check_conf('general', 'size', 10)*1024*1024*1024
+    logging.info("Destination disk: %s (%s)" % (dest, utils.sizeof_fmt(disks.disks_details[dest]['size'])))
+
+    if not disks.prepare_disk(utils.getboolean_check_conf('general', 'wipe', False), sz, dest):
         error = True
         return
 
@@ -169,7 +178,7 @@ else:
             except:
                 logging.exception("Exception in the main install function :")
                 error = True
-            if not error and config.getboolean('general', 'reboot'):
+            if not error and utils.getboolean_check_conf('general', 'reboot', 'true'):
                 logging.info('install done; rebooting system')
                 os.system('/sbin/reboot')
                 logging.shutdown()
@@ -180,4 +189,4 @@ else:
         else:
             logging.info('No image in configuration. Exiting leaving the rescue system')
             utils.loop_ip_forever(error)
-
+            os.unlink(PID_FILE)

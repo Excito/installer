@@ -1,4 +1,3 @@
-
 from subprocess import Popen, PIPE, STDOUT
 from threading import Thread
 import netifaces
@@ -6,6 +5,7 @@ import logging
 import os.path
 from ConfigParser import NoOptionError, NoSectionError
 import shlex
+
 
 config = None
 
@@ -139,7 +139,7 @@ else:
 
 
 def loop_ip_forever(error=False):
-    if is_b2() or not is_b3():
+    if not is_b3():
         if error:
             led_error()
         else:
@@ -253,3 +253,11 @@ def get_blkid_info(dev):
                 kv[1] = 'lvm'
             res[kv[0]] = kv[1]
     return res
+
+
+def sizeof_fmt(num, suffix='B'):
+    for unit in ['', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi', 'Ei', 'Zi']:
+        if abs(num) < 1024.0:
+            return "%3.1f %s%s" % (num, unit, suffix)
+        num /= 1024.0
+    return "%.1f %s%s" % (num, 'Yi', suffix)

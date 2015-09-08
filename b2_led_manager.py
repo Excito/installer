@@ -1,3 +1,5 @@
+__author__ = 'Charles Leclerc <leclerc.charles@gmail.com>'
+
 FREQ_SLOW = 32768
 FREQ_MEDIUM = 16384
 FREQ_QUICK = 8192

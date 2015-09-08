@@ -1,8 +1,8 @@
-__author__ = 'Charles'
-
 import utils
 import logging
 from utils import DiskError
+
+__author__ = 'Charles Leclerc <leclerc.charles@gmail.com>'
 
 
 def get_disk_details(dev):
@@ -74,21 +74,3 @@ def get_disk_details(dev):
         logging.error('Unsupported disklabel type : %s' % (l_type, ))
         raise DiskError
     return res
-
-
-def is_partition_type_valid(disk_type, part_type, part_details):
-    if part_type == 'data':
-        if disk_type == 'gpt':
-            return part_details['code'] in ('8300', '0700')
-        else:
-            return part_details['id'] in ('83', )
-    elif part_type == 'raid':
-        if disk_type == 'gpt':
-            return part_details['code'] in ('fd00', )
-        else:
-            return part_details['id'] in ('fd', )
-    elif part_type == 'lvm':
-        if disk_type == 'gpt':
-            return part_details['code'] in ('8e00', )
-        else:
-            return part_details['id'] in ('8e', )

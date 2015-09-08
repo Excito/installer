@@ -126,9 +126,6 @@ if not foreground:
 
 def do_install():
     global error, config
-    if not disks.load_and_check_conf():
-        error = True
-        return
 
     if not disks.inventory_existing():
         error = True

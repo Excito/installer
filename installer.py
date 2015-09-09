@@ -133,10 +133,19 @@ def do_install():
         return
 
     dest = disks.disks_details.keys()[0]
-    sz = utils.getint_check_conf('general', 'size', 10)*1024*1024*1024
+    size = utils.getint_check_conf('general', 'size', 10)
+    swap = utils.getint_check_conf('general', 'swap', 512)
+    if size != 'full':
+        if size < 10:
+            logging.warning("specified size (%i) below 10 ; overriding with size=10" % (size, ))
+            size = 10
+    if swap < 256:
+        logging.warning("specified swap size (%i) below 256 ; overriding with swap=256" % (swap, ))
+        swap = 256
+
     logging.info("Destination disk: %s (%s)" % (dest, utils.sizeof_fmt(disks.disks_details[dest]['size'])))
 
-    if not disks.prepare_disk(utils.getboolean_check_conf('general', 'wipe', False), sz, dest):
+    if not disks.prepare_disk(utils.getboolean_check_conf('general', 'wipe', False), size, swap, dest):
         error = True
         return
 

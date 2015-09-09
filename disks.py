@@ -2,7 +2,7 @@ import os
 import logging
 from subprocess import Popen, PIPE
 from threading import Thread
-from utils import InvalidConf, DiskError, is_b2, is_b3
+from utils import InvalidConf, DiskError, is_b2, is_b3, sizeof_fmt
 import re
 import partitions
 
@@ -33,35 +33,37 @@ def inventory_existing():
     return True
 
 
-def create_mbr(d, size):
-    logging.info("Creating MBR structure and first %s size partition on %s" % (size, d))
-    p = Popen(["fdisk", "/dev/%s" % (d, )], stdin=PIPE, stdout=PIPE, stderr=PIPE)
+def create_label(l_type, d, size, swap):
+    logging.info("Creating %s label, system %s size partition and swap %s size on %s" %
+                 (l_type.upper(), sizeof_fmt(size), sizeof_fmt(swap), d))
 
-    def follow_stderr():
-        for eline in p.stderr:
-            logging.error('[cmd] '+eline.strip())
-
-    t = Thread(target=follow_stderr)
-    t.start()
-    for iline in p.stdout:
-        logging.info('[cmd] '+iline.strip())
-    t.join()
+    return False
 
 
-def create_gpt(d, size):
-    pass
-
-
-def prepare_disk(wipe, size, dest):
+def prepare_disk(wipe, size, swap, dest):
     d = disks_details[dest]
+    if size == 'full':
+        min_size = 10*1024*1024*1024l + swap*1024*1024l
+    else:
+        min_size = size*1024*1024*1024l + swap*1024*1024l
+
+    # We take a 1 meg unused zone on disk start
+    if d['size'] - 1024*1024 < min_size:
+        logging.error("Destination disk is too small (min_size: %d; %s size: %d)!" % (min_size, dest, d['size']))
+        return False
+
+    swap = swap*1024*1024
+
+    if size == 'full':
+        size = d['size'] - swap - 1024*1024
+    else:
+        size *= 1024*1024*1024
+
     if d['type'] is None:
-        if d['size'] - 10*1024*1024 < size:
-            logging.error("Destination disk is too small !")
-            return False
         if is_b2():
-            return create_mbr(dest, size)
+            return create_label("dos", dest, size, swap)
         else:
-            return create_gpt(dest, size)
+            return create_label("dos", dest, size, swap)
     elif d['type'] == 'gpt':
         if wipe:
             # TODO

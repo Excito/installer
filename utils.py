@@ -256,6 +256,8 @@ def get_blkid_info(dev):
 
 
 def sizeof_fmt(num, suffix='B'):
+    if num == 'full':
+        return num
     for unit in ['', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi', 'Ei', 'Zi']:
         if abs(num) < 1024.0:
             return "%3.1f %s%s" % (num, unit, suffix)

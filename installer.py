@@ -123,6 +123,8 @@ if not foreground:
 def do_install():
     global error, config
 
+    # TODO verify image file
+
     if not disks.inventory_existing():
         error = True
         return
@@ -133,15 +135,17 @@ def do_install():
         return
 
     dest = disks.disks_details.keys()[0]
-    size = utils.getint_check_conf('general', 'size', 10)
-    swap = utils.getint_check_conf('general', 'swap', 512)
-    if size != 'full':
+    if config.has_option('general', 'size') and config.get('general', 'size', ) == 'full':
+        size = 'full'
+    else:
+        size = utils.getfloat_check_conf('general', 'size', 10.)
         if size < 10:
-            logging.warning("specified size (%i) below 10 ; overriding with size=10" % (size, ))
-            size = 10
+            logging.warning("specified size (%.1f) below 10 ; overriding with size=10" % (size, ))
+            size = 10.
+    swap = utils.getfloat_check_conf('general', 'swap', 512.)
     if swap < 256:
-        logging.warning("specified swap size (%i) below 256 ; overriding with swap=256" % (swap, ))
-        swap = 256
+        logging.warning("specified swap size (%.1f) below 256 ; overriding with swap=256" % (swap, ))
+        swap = 256.
 
     logging.info("Destination disk: %s (%s)" % (dest, utils.sizeof_fmt(disks.disks_details[dest]['size'])))
 
@@ -192,7 +196,7 @@ else:
                 os.system('/sbin/reboot')
                 logging.shutdown()
                 os.unlink(PID_FILE)
-                sys.exit(0);
+                sys.exit(0)
             else:
                 utils.loop_ip_forever(error)
         else:

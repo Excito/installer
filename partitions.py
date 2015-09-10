@@ -9,7 +9,7 @@ def get_disk_details(dev):
     res = {}
     fdev = '/dev/'+dev
     res['dev'] = fdev
-    rc, fd_output = utils.runcmd2(['fdisk', '-l', fdev])
+    rc, fd_output = utils.runcmd3(['fdisk', '-l', fdev])
     if rc:
         raise DiskError
     l_type = None
@@ -33,15 +33,14 @@ def get_disk_details(dev):
     elif l_type == 'gpt':
         res['type'] = 'gpt'
         res['parts'] = {}
-        rc, sg_output = utils.runcmd2(['sgdisk', '-p', fdev])
+        sec_size = 0
+        rc, sg_output = utils.runcmd3(['sgdisk', '-p', fdev])
+        if rc:
+            raise DiskError
         prec_empty = True
         code_dec = 0
         for iline in sg_output:
-            if len(iline.strip()) == 0:
-                prec_empty = True
-            elif prec_empty and iline.startswith('Number'):
-                code_dec = iline.index('Code')
-            elif code_dec > 0:
+            if code_dec > 0:
                 n = int(iline.split()[0])
                 res['parts'][n] = {}
                 fd = '%s%i' % (fdev, n)
@@ -50,6 +49,31 @@ def get_disk_details(dev):
                 blk = utils.get_blkid_info(fd)
                 if 'TYPE' in blk:
                     res['parts'][n]['type'] = blk['TYPE']
+            elif len(iline.strip()) == 0:
+                prec_empty = True
+            elif prec_empty and iline.startswith('Number'):
+                code_dec = iline.index('Code')
+            elif iline.startswith('Logical sector size:'):
+                try:
+                    sec_size = int(iline[21:].split()[0])
+                except ValueError:
+                    logging.exception("Invalid sector size read for %s:" % (dev, ))
+                    raise DiskError
+                if sec_size not in (512, 4096):
+                    logging.error("Invalid sector size read for %s: %s" % (dev, sec_size))
+                    raise DiskError
+                sec_unit = iline[21:].split()[1]
+                if sec_unit != 'bytes':
+                    logging.error("Unexpected unit in logical sector size for %s: %s" % (dev, ))
+        for k, v in res['parts']:
+            rc, sg_output = utils.runcmd3(['sgdisk', "-i", k, fdev])
+            if rc:
+                raise DiskError
+            for iline in sg_output:
+                if iline.startswith("Partition size:"):
+                    # TODO partition size
+                    pass
+
     elif l_type == 'dos':
         res['type'] = 'mbr'
         res['parts'] = {}

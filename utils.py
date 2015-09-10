@@ -31,26 +31,72 @@ def runcmd1(cmd, ign_out=False, ign_err=False, err_to_out=False):
     elif ign_out:
         p = Popen(cmd, stdout=open('/dev/null', 'w'), stderr=PIPE)
         for eline in p.stderr:
-            logging.error('[cmd] '+eline.strip())
+            logging.error('['+cmd[0]+'] '+eline.strip())
     elif ign_err:
         p = Popen(cmd, stdout=PIPE, stderr=open('/dev/null', 'w'))
         for iline in p.stdout:
-            logging.info('[cmd] '+iline.strip())
+            logging.info('['+cmd[0]+'] '+iline.strip())
     elif err_to_out:
         p = Popen(cmd, stdout=PIPE, stderr=STDOUT)
         for iline in p.stdout:
-            logging.info('[cmd] '+iline.strip())
+            logging.info('['+cmd[0]+'] '+iline.strip())
     else:
         p = Popen(cmd, stdout=PIPE, stderr=PIPE)
 
         def follow_stderr():
             for eline in p.stderr:
-                logging.error('[cmd] '+eline.strip())
+                logging.error('['+cmd[0]+'] '+eline.strip())
 
         t = Thread(target=follow_stderr)
         t.start()
         for iline in p.stdout:
-            logging.info('[cmd] '+iline.strip())
+            logging.info('['+cmd[0]+'] '+iline.strip())
+        t.join()
+
+    p.wait()
+
+    return p.returncode
+
+
+# Run the specified command with specified input redirecting all output to logging
+# Returns the command return code
+def runcmd2(cmd, cmd_input, ign_out=False, ign_err=False, err_to_out=False):
+    logging.info("Running '%s' with this input: %s" % (" ".join(cmd), cmd_input.replace("\n", "|")))
+    if ign_out and ign_err:
+        p = Popen(cmd, stdin=PIPE, stdout=open('/dev/null', 'w'), stderr=STDOUT)
+        p.stdin.write(cmd_input)
+        p.stdin.close()
+    elif ign_out:
+        p = Popen(cmd, stdin=PIPE, stdout=open('/dev/null', 'w'), stderr=PIPE)
+        p.stdin.write(cmd_input)
+        p.stdin.close()
+        for eline in p.stderr:
+            logging.error('['+cmd[0]+'] '+eline.strip())
+    elif ign_err:
+        p = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=open('/dev/null', 'w'))
+        p.stdin.write(cmd_input)
+        p.stdin.close()
+        for iline in p.stdout:
+            logging.info('['+cmd[0]+'] '+iline.strip())
+    elif err_to_out:
+        p = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
+        p.stdin.write(cmd_input)
+        p.stdin.close()
+        for iline in p.stdout:
+            logging.info('['+cmd[0]+'] '+iline.strip())
+    else:
+        p = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE)
+        p.stdin.write(cmd_input)
+        p.stdin.close()
+
+        def follow_stderr():
+            for eline in p.stderr:
+                logging.error('['+cmd[0]+'] '+eline.strip())
+
+        t = Thread(target=follow_stderr)
+        t.start()
+        for iline in p.stdout:
+            logging.info('['+cmd[0]+'] '+iline.strip())
         t.join()
 
     p.wait()
@@ -60,7 +106,7 @@ def runcmd1(cmd, ign_out=False, ign_err=False, err_to_out=False):
 
 # Run the specified command redirecting only stderr to logging
 # Returns the process returncode and the complete output (array containing lines)
-def runcmd2(cmd, ign_err=False):
+def runcmd3(cmd, ign_err=False):
     logging.info("Running '%s'" % (" ".join(cmd)))
     output = []
     if ign_err:
@@ -72,7 +118,7 @@ def runcmd2(cmd, ign_err=False):
 
         def follow_stderr():
             for eline in p.stderr:
-                logging.error('[cmd] '+eline.strip())
+                logging.error('['+cmd[0]+'] '+eline.strip())
 
         t = Thread(target=follow_stderr)
         t.start()
@@ -221,6 +267,36 @@ def getint_check_conf(section, option, default=None, min_value=None, max_value=N
     return res
 
 
+def getfloat_check_conf(section, option, default=None, min_value=None, max_value=None):
+    global config
+    try:
+        res = config.getfloat(section, option)
+    except NoSectionError:
+        if default is not None:
+            return default
+        else:
+            logging.error('%s section missing !' % (section, ))
+            raise InvalidConf('%s section missing !' % (section, ))
+    except NoOptionError:
+        if default is not None:
+            return default
+        else:
+            logging.error('%s value missing from section %s!' % (option, section))
+            raise InvalidConf('%s value missing from section %s!' % (option, section))
+    except ValueError:
+        logging.error('Malformed float value for %s in section %s' % (option, section))
+        raise InvalidConf('Malformed float value for %s in section %s' % (option, section))
+    if min_value and res < min_value:
+        logging.error('Invalid float value for %s in section %s (minimum value: %i)' % (option, section, min_value))
+        raise InvalidConf('Invalid float value for %s in section %s (minimum value: %i)'
+                          % (option, section, min_value))
+    if max_value and res > max_value:
+        logging.error('Invalid float value for %s in section %s (maximum value: %i)' % (option, section, max_value))
+        raise InvalidConf('Invalid float value for %s in section %s (maximum value: %i)'
+                          % (option, section, max_value))
+    return res
+
+
 def getboolean_check_conf(section, option, default=None):
     global config
     try:
@@ -243,7 +319,7 @@ def getboolean_check_conf(section, option, default=None):
 
 
 def get_blkid_info(dev):
-    rc, output = runcmd2(['blkid', dev], True)
+    rc, output = runcmd3(['blkid', dev], True)
     res = {}
     if output:
         l = output[0]

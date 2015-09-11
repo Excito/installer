@@ -31,7 +31,7 @@ def inventory_existing():
     return True
 
 
-def create_label(d, size, swap):
+def create_label(d, size, swap, full):
     if is_b2():
         l_type = "dos"
         p_type = "MBR"
@@ -40,7 +40,10 @@ def create_label(d, size, swap):
         p_type = "GPT"
     logging.info("Creating %s label, system %.1f GiB size partition and swap %.1f MiB size on %s" %
                  (p_type, size, swap, d))
-    fdisk_input = "label: %s\n,%.1fGiB,L\n,,S\n" % (l_type, size)
+    if full:
+        fdisk_input = "label: %s\n,%.1fGiB,L\n,,S\n" % (l_type, size)
+    else:
+        fdisk_input = "label: %s\n,%.1fGiB,L\n,%.1fMiB,S\n" % (l_type, size, swap)
     r = runcmd2(["sfdisk", "/dev/%s" % (d,)], fdisk_input)
     return r == 0
 
@@ -53,10 +56,11 @@ def wipe_label(d):
 
 def check_and_prepare_disk(wipe, size, swap, dest):
     d = disks_details[dest]
-    print d
     if size == 'full':
+        full = True
         min_size = 10*1024*1024*1024 + swap*1024*1024
     else:
+        full = False
         min_size = size*1024*1024*1024 + swap*1024*1024
 
     # We take a 1 meg unused zone on disk start
@@ -69,16 +73,16 @@ def check_and_prepare_disk(wipe, size, swap, dest):
         size = (d['size'] - (swap - 1)*1024*1024) / float(1024*1024*1024)
 
     if d['type'] is None:
-        return create_label(dest, size, swap)
+        return create_label(dest, size, swap, full)
     elif wipe:
         if wipe_label(dest):
-            return create_label(dest, size, swap)
+            return create_label(dest, size, swap, full)
         logging.error("Unable to wipe partition label on %s" % (dest, ))
         return False
     elif len(d['parts']) == 0:
         logging.warning("Empty disk label found ; replacing it with adapted label")
         if wipe_label(dest):
-            return create_label(dest, size, swap)
+            return create_label(dest, size, swap, full)
         logging.error("Unable to wipe existing partition label on %s" % (dest, ))
         return False
     elif d['type'] == 'gpt':

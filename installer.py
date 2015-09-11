@@ -9,6 +9,7 @@ from signal import signal, SIGTERM
 
 import utils
 import disks
+import partitions
 
 __author__ = 'Charles Leclerc <leclerc.charles@gmail.com>'
 
@@ -147,7 +148,9 @@ def do_install():
         logging.warning("specified swap size (%.1f) below 256 ; overriding with swap=256" % (swap, ))
         swap = 256.
 
-    logging.info("Destination disk: %s (%s)" % (dest, utils.sizeof_fmt(disks.disks_details[dest]['size'])))
+    logging.info("Destination disk: %s (%s, %s)" %
+                 (dest, utils.sizeof_fmt(disks.disks_details[dest]['size']),
+                  disks.disks_details[dest]['type'] if disks.disks_details[dest]['type'] else 'blank'))
 
     swap_n = disks.check_and_prepare_disk(utils.getboolean_check_conf('general', 'wipe', False), size, swap, dest)
     if not swap_n:
@@ -155,6 +158,14 @@ def do_install():
         return
 
     logging.info("Disk looking good, proceed with formatting")
+
+    if not partitions.format_system(dest):
+        error = True
+        return
+
+    if not partitions.format_swap(dest, swap_n):
+        error = True
+        return
 
 
 if foreground:

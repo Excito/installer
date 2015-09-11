@@ -140,3 +140,14 @@ def check_type(part_num, disk_details, expected):
                 logging.info("Fixing %s partition type" % (disk_details['parts'][part_num]['dev'], ))
                 return utils.runcmd2(["sfdisk", "-N%d" % (part_num,), disk_details['dev']], ",,S\n") == 0
     return True
+
+
+def format_system(disk):
+    if utils.is_b2():
+        return utils.runcmd1(["mkfs.ext3", "-F", "-O", "^ext_attr", "/dev/%s1" % (disk, )], err_to_out=True) == 0
+    else:
+        return utils.runcmd1(["mkfs.ext3", "-F", "/dev/%s1" % (disk, )], err_to_out=True) == 0
+
+
+def format_swap(disk, n):
+    return utils.runcmd1(["mkswap", "-f", "/dev/%s%d" % (disk, n)], err_to_out=True) == 0

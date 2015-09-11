@@ -149,9 +149,12 @@ def do_install():
 
     logging.info("Destination disk: %s (%s)" % (dest, utils.sizeof_fmt(disks.disks_details[dest]['size'])))
 
-    if not disks.prepare_disk(utils.getboolean_check_conf('general', 'wipe', False), size, swap, dest):
+    swap_n = disks.check_and_prepare_disk(utils.getboolean_check_conf('general', 'wipe', False), size, swap, dest)
+    if not swap_n:
         error = True
         return
+
+    logging.info("Disk looking good, proceed with formatting")
 
 
 if foreground:

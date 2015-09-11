@@ -51,8 +51,9 @@ def wipe_label(d):
     return r == 0
 
 
-def prepare_disk(wipe, size, swap, dest):
+def check_and_prepare_disk(wipe, size, swap, dest):
     d = disks_details[dest]
+    print d
     if size == 'full':
         min_size = 10*1024*1024*1024 + swap*1024*1024
     else:
@@ -75,7 +76,7 @@ def prepare_disk(wipe, size, swap, dest):
         logging.error("Unable to wipe partition label on %s" % (dest, ))
         return False
     elif len(d['parts']) == 0:
-        logging.info("Empty disk label found ; replacing it with adapted label")
+        logging.warning("Empty disk label found ; replacing it with adapted label")
         if wipe_label(dest):
             return create_label(dest, size, swap)
         logging.error("Unable to wipe existing partition label on %s" % (dest, ))
@@ -84,18 +85,37 @@ def prepare_disk(wipe, size, swap, dest):
         if is_b2():
             logging.error("Cannot use existing GPT label on the Bubba|2")
             return False
-        else:
-            # TODO
-            if 1 in d['parts']:
-                pass
-            else:
-                logging.error("Missing reusable first partition on the disk")
-                return False
-            print d
-            return True
     elif d['type'] == 'mbr':
         if not is_b2():
             logging.warning("Using MBR label on the B3 is not recommended (GPT is preferred); continuing anyway")
-        # TODO
-        print d
-        return True
+
+    if 1 in d['parts']:
+        if d['type'] == 'mbr' and d['parts'][1]['id'] in partitions.ext_codes:
+            logging.error("Will not overwrite an extended first partition !")
+            return False
+        if d['parts'][1]['size'] < 10*1024*1024*1024:
+            logging.error("The existing (%s) system partition does not meet minimal size criteria of 10 GiB" %
+                          (sizeof_fmt(d['parts'][1]['size'], )))
+            return False
+        if not partitions.check_type(1, d, "data"):
+            return False
+        logging.info("Using existing system partition (%s1, size: %s) " % (dest, sizeof_fmt(d['parts'][1]['size'])), )
+    else:
+        logging.error("Missing reusable first partition on %s" % (dest, ))
+        return False
+
+    for n, p in d['parts'].iteritems():
+        if n == 1:
+            continue
+        if d['type'] == 'mbr' and p['id'] == '82' or \
+           d['type'] == 'gpt' and p['code'] == '8200':
+            if p['size'] < 256*1024*1024:
+                logging.error("The existing swap partition (%d) on %s does not meet minimal size criteria" % (n, dest))
+                return False
+            logging.info("Using existing swap partition (%s%d, size: %s) " %
+                         (dest, n, sizeof_fmt(p['size'])))
+            return n
+
+    logging.error("Missing usable swap partition on %s" % (dest, ))
+    return False
+

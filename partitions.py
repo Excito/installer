@@ -144,9 +144,10 @@ def check_type(part_num, disk_details, expected):
 
 def format_system(disk):
     if utils.is_b2():
-        return utils.runcmd1(["mkfs.ext3", "-F", "-O", "^ext_attr", "/dev/%s1" % (disk, )], err_to_out=True) == 0
+        return utils.runcmd1(["mkfs.ext3", "-Fq", "-O", "^ext_attr", "-I", "128", "/dev/%s1" % (disk, )],
+                             err_to_out=True) == 0
     else:
-        return utils.runcmd1(["mkfs.ext3", "-F", "/dev/%s1" % (disk, )], err_to_out=True) == 0
+        return utils.runcmd1(["mkfs.ext3", "-Fq", "/dev/%s1" % (disk, )], err_to_out=True) == 0
 
 
 def format_swap(disk, n):

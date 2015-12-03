@@ -124,7 +124,12 @@ if not foreground:
 def do_install():
     global error, config
 
-    # TODO verify image file
+    image = os.path.normpath("/mnt/usb/install/" + config.get('general', 'image'))
+    logging.info("Checking image file "+image)
+    if not os.path.isfile(image):
+        logging.error("image file not found !")
+        error = True
+        return
 
     if not disks.inventory_existing():
         error = True
@@ -140,9 +145,9 @@ def do_install():
         size = 'full'
     else:
         size = utils.getfloat_check_conf('general', 'size', 10.)
-        if size < 10:
-            logging.warning("specified size (%.1f) below 10 ; overriding with size=10" % (size, ))
-            size = 10.
+        if size < 8:
+            logging.warning("specified size (%.1f) below 8 ; overriding with size=8" % (size, ))
+            size = 8.
     swap = utils.getfloat_check_conf('general', 'swap', 512.)
     if swap < 256:
         logging.warning("specified swap size (%.1f) below 256 ; overriding with swap=256" % (swap, ))
@@ -159,14 +164,37 @@ def do_install():
 
     logging.info("Disk looking good, proceed with formatting")
 
+    logging.info("Formatting system partition")
     if not partitions.format_system(dest):
+        logging.error("Error while formatting system partition")
         error = True
         return
 
+    logging.info("Formatting swap partition")
     if not partitions.format_swap(dest, swap_n):
+        logging.error("Error while formatting swap partition")
         error = True
         return
 
+    logging.info("Mounting system partition")
+    if not partitions.mount_target(dest):
+        logging.error("Error while mounting system partition")
+        error = True
+        return
+
+    logging.info("Extracting image file to target")
+    ex_res = utils.runcmd1(["tar", "-xf", image, "-C", "/mnt/target"], err_to_out=True) == 0
+    logging.info("Umounting system partition")
+    um_res = partitions.umount_target()
+    if not ex_res or not um_res:
+        if not ex_res:
+            logging.error("Error while extracting image")
+        if not um_res:
+            logging.error("Error while unmounting target")
+        error = True
+        return
+
+    logging.info("System successfully installed")
 
 if foreground:
     try:

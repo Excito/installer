@@ -1,4 +1,3 @@
-from pkgutil import extend_path
 import utils
 import logging
 from utils import DiskError
@@ -152,3 +151,11 @@ def format_system(disk):
 
 def format_swap(disk, n):
     return utils.runcmd1(["mkswap", "-f", "/dev/%s%d" % (disk, n)], err_to_out=True) == 0
+
+
+def mount_target(disk):
+    return utils.runcmd1(["mount", "/dev/%s1" % (disk,), "/mnt/target"], err_to_out=True) == 0
+
+
+def umount_target():
+    return utils.runcmd1(["umount", "/mnt/target"], err_to_out=True) == 0

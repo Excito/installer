@@ -58,7 +58,7 @@ def check_and_prepare_disk(wipe, size, swap, dest):
     d = disks_details[dest]
     if size == 'full':
         full = True
-        min_size = 10*1024*1024*1024 + swap*1024*1024
+        min_size = 8*1024*1024*1024 + swap*1024*1024
     else:
         full = False
         min_size = size*1024*1024*1024 + swap*1024*1024
@@ -97,8 +97,8 @@ def check_and_prepare_disk(wipe, size, swap, dest):
         if d['type'] == 'mbr' and d['parts'][1]['id'] in partitions.ext_codes:
             logging.error("Will not overwrite an extended first partition !")
             return False
-        if d['parts'][1]['size'] < 10*1024*1024*1024:
-            logging.error("The existing (%s) system partition does not meet minimal size criteria of 10 GiB" %
+        if d['parts'][1]['size'] < 8*1024*1024*1024:
+            logging.error("The existing (%s) system partition does not meet minimal size criteria of 8 GiB" %
                           (sizeof_fmt(d['parts'][1]['size'], )))
             return False
         if not partitions.check_type(1, d, "data"):

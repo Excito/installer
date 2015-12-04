@@ -44,8 +44,10 @@ def create_label(d, size, swap, full):
         fdisk_input = "label: %s\n,%.1fGiB,L\n,,S\n" % (l_type, size)
     else:
         fdisk_input = "label: %s\n,%.1fGiB,L\n,%.1fMiB,S\n" % (l_type, size, swap)
-    r = runcmd2(["sfdisk", "/dev/%s" % (d,)], fdisk_input)
-    return r == 0
+    if runcmd2(["sfdisk", "/dev/%s" % (d,)], fdisk_input) != 0:
+        return False
+    else:
+        return 2
 
 
 def wipe_label(d):

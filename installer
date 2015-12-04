@@ -13,6 +13,8 @@ import partitions
 
 __author__ = 'Charles Leclerc <leclerc.charles@gmail.com>'
 
+VERSION = '1.0'
+
 CONFIG_FILE = '/mnt/usb/install/install.ini'
 LOG_FILE = '/mnt/usb/install/install.log'
 PID_FILE = '/var/run/installer.pid'
@@ -198,6 +200,7 @@ def do_install():
 
 if foreground:
     try:
+        logging.info("Running Excito installer version %s" % (VERSION, ))
         error = False
         if config.has_option('general', 'image'):
             do_install()
@@ -223,7 +226,7 @@ else:
         logging.basicConfig(format='%(asctime)s.%(msecs)d - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %I:%M:%S',
                             level=logging.INFO, filename=LOG_FILE)
 
-        logging.info("Running installer daemon process with pid %i" % (os.getpid(), ))
+        logging.info("Running Excito installer version %s daemon process with pid %i" % (VERSION, os.getpid()))
 
         error = False
 

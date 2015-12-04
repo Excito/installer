@@ -139,7 +139,7 @@ def configure_network():
         if p == 'static' and (not config.has_option(s, 'ipaddr') or not config.has_option(s, 'netmask')):
             logging.warning('Missing ipaddr or netmask for static configuration of %s ; falling back to DHCP' % (s, ))
             p = 'dhcp'
-        o.write('\niface %s proto %s' % (i, p))
+        o.write('\niface %s inet %s' % (i, p))
         if p == 'static':
             o.write('\n  address %s\n  netmask  %s' % (config.get(s, 'ipaddr').strip(),
                                                        config.get(s, 'netmask').strip()))

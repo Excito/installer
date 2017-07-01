@@ -2,10 +2,10 @@ from subprocess import Popen, PIPE, STDOUT
 from threading import Thread
 import netifaces
 import logging
-import os.path
 from ConfigParser import NoOptionError, NoSectionError
 import shlex
 
+from b3_led_manager import *
 
 config = None
 
@@ -167,30 +167,7 @@ def get_first_ip_relevant_numbers():
     return None
 
 
-# Detect if we're running on a Bubba|2
-def is_b2():
-    return os.path.exists('/sys/devices/platform/bubbatwo')
-
-
-# Detect if we're running on a B3
-def is_b3():
-    return os.path.exists('/sys/class/leds/bubba3:blue:active')
-
-if is_b2():
-    from b2_led_manager import *
-elif is_b3():
-    from b3_led_manager import *
-else:
-    from test_led_manager import *
-
-
 def loop_ip_forever(error=False):
-    if not is_b3():
-        if error:
-            led_error()
-        else:
-            led_rescue()
-        return  # not supported on the b2
     ip = None
     while True:
         if error:

@@ -2,6 +2,7 @@ from time import sleep
 
 __author__ = 'Charles Leclerc <leclerc.charles@gmail.com>'
 
+
 def b3_set_color(color):
     r = 0
     g = 0

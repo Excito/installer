@@ -6,14 +6,16 @@ import logging
 import sys
 import ConfigParser
 from signal import signal, SIGTERM
+import shutil
 
+from b3_led_manager import *
 import utils
 import disks
 import partitions
 
 __author__ = 'Charles Leclerc <leclerc.charles@gmail.com>'
 
-VERSION = '1.0'
+VERSION = '2.0'
 
 CONFIG_FILE = '/mnt/usb/install/install.ini'
 LOG_FILE = '/mnt/usb/install/install.log'
@@ -67,13 +69,6 @@ def early_exit():
             remove_pid()
             sys.exit(1)
 
-if utils.is_b2():
-    from b2_led_manager import *
-elif utils.is_b3():
-    from b3_led_manager import *
-else:
-    from test_led_manager import *
-
 led_install()
 
 # Foreground run ?
@@ -95,11 +90,6 @@ utils.config = config
 for s in ('wan', 'lan'):
     config.add_section(s)
     config.set(s, 'proto', 'dhcp')
-
-if not (utils.is_b3() or utils.is_b2()):
-    logging.info('Test environment ; using config from installer directory')
-    CONFIG_FILE = '/opt/excito/install-test.ini'
-    LOG_FILE = '/opt/excito/install-test.log'
 
 
 if os.path.exists(CONFIG_FILE):
@@ -195,6 +185,10 @@ def do_install():
             logging.error("Error while unmounting target")
         error = True
         return
+
+    if utils.getboolean_check_conf('general', 'copy-network-settings', True):
+        logging.info('Copying network settings to target')
+        shutil.copy("/etc/network/interfaces", "/mnt/target/etc/network")
 
     logging.info("System successfully installed")
 

@@ -1,6 +1,6 @@
 import os
 import logging
-from utils import InvalidConf, DiskError, is_b2, sizeof_fmt, runcmd1, runcmd2
+from utils import InvalidConf, DiskError, sizeof_fmt, runcmd1, runcmd2
 import re
 import partitions
 
@@ -32,18 +32,12 @@ def inventory_existing():
 
 
 def create_label(d, size, swap, full):
-    if is_b2():
-        l_type = "dos"
-        p_type = "MBR"
-    else:
-        l_type = "gpt"
-        p_type = "GPT"
-    logging.info("Creating %s label, system %.1f GiB size partition and swap %.1f MiB size on %s" %
-                 (p_type, size, swap, d))
+    logging.info("Creating GPT label, system %.1f GiB size partition and swap %.1f MiB size on %s" %
+                 (size, swap, d))
     if full:
-        fdisk_input = "label: %s\n,%.1fGiB,L\n,,S\n" % (l_type, size)
+        fdisk_input = "label: gpt\n,%.1fGiB,L\n,,S\n" % (size, )
     else:
-        fdisk_input = "label: %s\n,%.1fGiB,L\n,%.1fMiB,S\n" % (l_type, size, swap)
+        fdisk_input = "label: gpt\n,%.1fGiB,L\n,%.1fMiB,S\n" % (size, swap)
     if runcmd2(["sfdisk", "/dev/%s" % (d,)], fdisk_input) != 0:
         return False
     else:
@@ -87,13 +81,8 @@ def check_and_prepare_disk(wipe, size, swap, dest):
             return create_label(dest, size, swap, full)
         logging.error("Unable to wipe existing partition label on %s" % (dest, ))
         return False
-    elif d['type'] == 'gpt':
-        if is_b2():
-            logging.error("Cannot use existing GPT label on the Bubba|2")
-            return False
     elif d['type'] == 'mbr':
-        if not is_b2():
-            logging.warning("Using MBR label on the B3 is not recommended (GPT is preferred); continuing anyway")
+        logging.warning("Using MBR label on the B3 is not recommended (GPT is preferred); continuing anyway")
 
     if 1 in d['parts']:
         if d['type'] == 'mbr' and d['parts'][1]['id'] in partitions.ext_codes:

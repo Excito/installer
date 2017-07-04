@@ -7,6 +7,7 @@ import sys
 import ConfigParser
 from signal import signal, SIGTERM
 import shutil
+from string import Template
 
 from b3_led_manager import *
 import utils
@@ -187,8 +188,14 @@ def do_install():
         return
 
     if utils.getboolean_check_conf('general', 'copy-network-settings', True):
-        logging.info('Copying network settings to target')
-        shutil.copy("/etc/network/interfaces", "/mnt/target/etc/network")
+        tpl = os.path.join(os.path.dirname(image), 'interfaces.tpl')
+        if os.path.exists(tpl):
+            logging.info('Copying network settings to target with image-supplied template')
+            t = Template(open(tpl, 'r').read())
+            with open("/mnt/target/etc/network/interfaces", 'w') as o:
+                o.write(t.substitute(interfaces=utils.gen_network_config()))
+        else:
+            logging.warning("No interfaces template found in the image directory ; ignoring copy-network-settings")
 
     logging.info("System successfully installed")
 

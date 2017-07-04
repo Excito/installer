@@ -133,20 +133,32 @@ def runcmd3(cmd, ign_err=False):
 def configure_network():
     global config
     logging.info('Writing /etc/network/interfaces')
-    o = open('/etc/network/interfaces', 'a')
+    with open('/etc/network/interfaces', 'a') as o:
+        o.write(gen_network_config())
+    if config.has_option('dns', 'nameservers') or config.has_option('dns', 'search'):
+        logging.info('Writing /etc/resolv.conf')
+        with open('/etc/resolv.conf', 'w') as o:
+            for ns in get_check_conf('dns', 'nameservers', '').split(','):
+                o.write('nameserver %s\n' % (ns, ))
+            if config.has_option('dns', 'search'):
+                o.write('search %s\n' % (config.get('dns', 'search'), ))
+
+
+def gen_network_config():
+    global config
+    res = ''
     for s, i in (('wan', 'eth0'), ('lan', 'eth1')):
         p = config.get(s, 'proto').strip()
         if p == 'static' and (not config.has_option(s, 'ipaddr') or not config.has_option(s, 'netmask')):
             logging.warning('Missing ipaddr or netmask for static configuration of %s ; falling back to DHCP' % (s, ))
             p = 'dhcp'
-        o.write('\niface %s inet %s' % (i, p))
+        res += '\niface %s inet %s' % (i, p)
         if p == 'static':
-            o.write('\n  address %s\n  netmask  %s' % (config.get(s, 'ipaddr').strip(),
-                                                       config.get(s, 'netmask').strip()))
+            res += '\n  address %s\n  netmask  %s' % (config.get(s, 'ipaddr').strip(), config.get(s, 'netmask').strip())
             if config.has_option(s, 'gateway'):
-                o.write('\n  gateway %s' % (config.get(s, 'gateway').strip()))
-        o.write('\n')
-    o.close()
+                res += '\n  gateway %s' % (config.get(s, 'gateway').strip())
+        res += '\n'
+    return res
 
 
 # Return the relevant numbers from the first address ip found on eth0/eth1

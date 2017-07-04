@@ -177,12 +177,10 @@ def do_install():
 
     logging.info("Extracting image file to target")
     ex_res = utils.runcmd1(["tar", "-xf", image, "-C", "/mnt/target"], err_to_out=True) == 0
-    logging.info("Umounting system partition")
-    um_res = partitions.umount_target()
-    if not ex_res or not um_res:
-        if not ex_res:
-            logging.error("Error while extracting image")
-        if not um_res:
+    if not ex_res:
+        logging.error("Error while extracting image")
+        logging.info("Umounting system partition")
+        if not partitions.umount_target():
             logging.error("Error while unmounting target")
         error = True
         return
@@ -199,6 +197,13 @@ def do_install():
                 o.write(t.substitute(interfaces=utils.gen_network_config()))
         else:
             logging.warning("No interfaces template found in the image directory ; ignoring copy-network-settings")
+
+    logging.info("Umounting system partition")
+    um_res = partitions.umount_target()
+    if not um_res:
+        logging.error("Error while unmounting target")
+        error = True
+        return
 
     logging.info("System successfully installed")
 

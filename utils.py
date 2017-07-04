@@ -148,6 +148,7 @@ def gen_network_config():
     global config
     res = ''
     for s, i in (('wan', 'eth0'), ('lan', 'eth1')):
+        res += '\nallow-hotplug %s' % (i, )
         p = config.get(s, 'proto').strip()
         if p == 'static' and (not config.has_option(s, 'ipaddr') or not config.has_option(s, 'netmask')):
             logging.warning('Missing ipaddr or netmask for static configuration of %s ; falling back to DHCP' % (s, ))

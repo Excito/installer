@@ -188,9 +188,12 @@ def do_install():
         return
 
     if utils.getboolean_check_conf('general', 'copy-network-settings', True):
+        if os.path.exists('/etc/resolv.conf'):
+            logging.info('Copying resolv.conf to the target')
+            shutil.copy('/etc/resolv.conf', '/mnt/target/etc')
         tpl = os.path.join(os.path.dirname(image), 'interfaces.tpl')
         if os.path.exists(tpl):
-            logging.info('Copying network settings to target with image-supplied template')
+            logging.info('Generating network settings to target with image-supplied template')
             t = Template(open(tpl, 'r').read())
             with open("/mnt/target/etc/network/interfaces", 'w') as o:
                 o.write(t.substitute(interfaces=utils.gen_network_config()))

@@ -9,7 +9,6 @@ from signal import signal, SIGTERM
 import shutil
 from string import Template
 
-from b3_led_manager import *
 import utils
 import disks
 import partitions
@@ -69,6 +68,11 @@ def early_exit():
             utils.loop_ip_forever(True)
             remove_pid()
             sys.exit(1)
+
+if utils.is_b2():
+    from b2_led_manager import *
+elif utils.is_b3():
+    from b3_led_manager import *
 
 led_install()
 

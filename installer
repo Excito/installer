@@ -15,7 +15,7 @@ import partitions
 
 __author__ = 'Charles Leclerc <leclerc.charles@gmail.com>'
 
-VERSION = '2.0'
+VERSION = '2.1'
 
 CONFIG_FILE = '/mnt/usb/install/install.ini'
 LOG_FILE = '/mnt/usb/install/install.log'

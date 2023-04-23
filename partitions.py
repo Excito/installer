@@ -19,7 +19,7 @@ def get_disk_details(dev):
     for iline in fd_output:
         if iline.startswith('Disk %s' % (fdev, )):
             d_size = iline.split()
-            size = long(d_size[d_size.index('bytes,')-1])
+            size = int(d_size[d_size.index('bytes,')-1])
         elif iline.startswith('Disklabel type'):
             l_type = iline[16:].strip()
 
@@ -67,7 +67,7 @@ def get_disk_details(dev):
                 sec_unit = iline[21:].split()[1]
                 if sec_unit != 'bytes':
                     logging.error("Unexpected unit in logical sector size for %s: %s" % (dev, sec_unit))
-        for k, v in res['parts'].iteritems():
+        for k, v in res['parts'].items():
             rc, sg_output = utils.runcmd3(['sgdisk', "-i", str(k), fdev])
             if rc:
                 raise DiskError

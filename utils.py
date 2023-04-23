@@ -3,7 +3,7 @@ from threading import Thread
 import netifaces
 import logging
 import os.path
-from ConfigParser import NoOptionError, NoSectionError
+from configparser import NoOptionError, NoSectionError
 import shlex
 
 
@@ -173,7 +173,7 @@ def get_first_ip_relevant_numbers():
             ip = addrs[netifaces.AF_INET][0]['addr'].split('.')
             nm = addrs[netifaces.AF_INET][0]['netmask'].split('.')
             res = []
-            for r, n in map(None, ip, nm):
+            for r, n in zip(ip, nm):
                 if n == '0':
                     res.append(r)
             return res

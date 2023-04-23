@@ -4,7 +4,7 @@ import daemon
 import os.path
 import logging
 import sys
-import ConfigParser
+import configparser
 from signal import signal, SIGTERM
 import shutil
 from string import Template
@@ -15,7 +15,7 @@ import partitions
 
 __author__ = 'Charles Leclerc <leclerc.charles@gmail.com>'
 
-VERSION = '2.1'
+VERSION = '2.2'
 
 CONFIG_FILE = '/mnt/usb/install/install.ini'
 LOG_FILE = '/mnt/usb/install/install.log'
@@ -89,7 +89,7 @@ else:
                         level=logging.INFO, filename='/root/install-early.log')
 
 # Configuration defaults
-config = ConfigParser.SafeConfigParser()
+config = configparser.ConfigParser()
 utils.config = config
 
 for s in ('wan', 'lan'):
@@ -137,7 +137,7 @@ def do_install():
         error = True
         return
 
-    dest = disks.disks_details.keys()[0]
+    dest = list(disks.disks_details.keys())[0]
     if config.has_option('general', 'size') and config.get('general', 'size', ) == 'full':
         size = 'full'
     else:
@@ -241,23 +241,27 @@ else:
 
         logging.info("Running Excito installer version %s daemon process with pid %i" % (VERSION, os.getpid()))
 
-        error = False
+        try:
+            error = False
 
-        if config.has_option('general', 'image'):
-            try:
-                do_install()
-            except:
-                logging.exception("Exception in the main install function :")
-                error = True
-            if not error and utils.getboolean_check_conf('general', 'reboot', 'true'):
-                logging.info('install done; rebooting system')
-                os.system('/sbin/reboot')
-                logging.shutdown()
-                os.unlink(PID_FILE)
-                sys.exit(0)
+            if config.has_option('general', 'image'):
+                try:
+                    do_install()
+                except:
+                    logging.exception("Exception in the main install function :")
+                    error = True
+                if not error and utils.getboolean_check_conf('general', 'reboot', 'true'):
+                    logging.info('install done; rebooting system')
+                    os.system('/sbin/reboot')
+                    logging.shutdown()
+                    os.unlink(PID_FILE)
+                    sys.exit(0)
+                else:
+                    utils.loop_ip_forever(error)
             else:
+                logging.info('No image in configuration. Exiting leaving the rescue system')
                 utils.loop_ip_forever(error)
-        else:
-            logging.info('No image in configuration. Exiting leaving the rescue system')
-            utils.loop_ip_forever(error)
-            os.unlink(PID_FILE)
+        except:
+            logging.exception("Error while running excito installer")
+        finally:
+            remove_pid()

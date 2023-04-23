@@ -110,7 +110,7 @@ def check_and_prepare_disk(wipe, size, swap, dest):
         logging.error("Missing reusable first partition on %s" % (dest, ))
         return False
 
-    for n, p in d['parts'].iteritems():
+    for n, p in d['parts'].items():
         if n == 1:
             continue
         if d['type'] == 'mbr' and p['id'] == '82' or \

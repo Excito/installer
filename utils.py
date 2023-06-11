@@ -27,21 +27,21 @@ class DiskError(Exception):
 def runcmd1(cmd, ign_out=False, ign_err=False, err_to_out=False):
     logging.info("Running '%s'" % (" ".join(cmd)))
     if ign_out and ign_err:
-        p = Popen(cmd, stdout=open('/dev/null', 'w'), stderr=STDOUT)
+        p = Popen(cmd, stdout=open('/dev/null', 'w'), stderr=STDOUT, encoding='utf8')
     elif ign_out:
-        p = Popen(cmd, stdout=open('/dev/null', 'w'), stderr=PIPE)
+        p = Popen(cmd, stdout=open('/dev/null', 'w'), stderr=PIPE, encoding='utf8')
         for eline in p.stderr:
             logging.error('['+cmd[0]+'] '+eline.strip())
     elif ign_err:
-        p = Popen(cmd, stdout=PIPE, stderr=open('/dev/null', 'w'))
+        p = Popen(cmd, stdout=PIPE, stderr=open('/dev/null', 'w'), encoding='utf8')
         for iline in p.stdout:
             logging.info('['+cmd[0]+'] '+iline.strip())
     elif err_to_out:
-        p = Popen(cmd, stdout=PIPE, stderr=STDOUT)
+        p = Popen(cmd, stdout=PIPE, stderr=STDOUT, encoding='utf8')
         for iline in p.stdout:
             logging.info('['+cmd[0]+'] '+iline.strip())
     else:
-        p = Popen(cmd, stdout=PIPE, stderr=PIPE)
+        p = Popen(cmd, stdout=PIPE, stderr=PIPE, encoding='utf8')
 
         def follow_stderr():
             for eline in p.stderr:
@@ -63,29 +63,29 @@ def runcmd1(cmd, ign_out=False, ign_err=False, err_to_out=False):
 def runcmd2(cmd, cmd_input, ign_out=False, ign_err=False, err_to_out=False):
     logging.info("Running '%s' with this input: %s" % (" ".join(cmd), cmd_input.replace("\n", "|")))
     if ign_out and ign_err:
-        p = Popen(cmd, stdin=PIPE, stdout=open('/dev/null', 'w'), stderr=STDOUT)
+        p = Popen(cmd, stdin=PIPE, stdout=open('/dev/null', 'w'), stderr=STDOUT, encoding='utf8')
         p.stdin.write(cmd_input)
         p.stdin.close()
     elif ign_out:
-        p = Popen(cmd, stdin=PIPE, stdout=open('/dev/null', 'w'), stderr=PIPE)
+        p = Popen(cmd, stdin=PIPE, stdout=open('/dev/null', 'w'), stderr=PIPE, encoding='utf8')
         p.stdin.write(cmd_input)
         p.stdin.close()
         for eline in p.stderr:
             logging.error('['+cmd[0]+'] '+eline.strip())
     elif ign_err:
-        p = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=open('/dev/null', 'w'))
+        p = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=open('/dev/null', 'w'), encoding='utf8')
         p.stdin.write(cmd_input)
         p.stdin.close()
         for iline in p.stdout:
             logging.info('['+cmd[0]+'] '+iline.strip())
     elif err_to_out:
-        p = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
+        p = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT, encoding='utf8')
         p.stdin.write(cmd_input)
         p.stdin.close()
         for iline in p.stdout:
             logging.info('['+cmd[0]+'] '+iline.strip())
     else:
-        p = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE)
+        p = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE, encoding='utf8')
         p.stdin.write(cmd_input)
         p.stdin.close()
 
@@ -110,11 +110,11 @@ def runcmd3(cmd, ign_err=False):
     logging.info("Running '%s'" % (" ".join(cmd)))
     output = []
     if ign_err:
-        p = Popen(cmd, stdout=PIPE, stderr=open('/dev/null', 'w'))
+        p = Popen(cmd, stdout=PIPE, stderr=open('/dev/null', 'w'), encoding='utf8')
         for iline in p.stdout:
             output.append(iline)
     else:
-        p = Popen(cmd, stdout=PIPE, stderr=PIPE)
+        p = Popen(cmd, stdout=PIPE, stderr=PIPE, encoding='utf8')
 
         def follow_stderr():
             for eline in p.stderr:
